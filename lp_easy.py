@@ -40,8 +40,11 @@ years = range(number_of_years)
 
 # the demand every slow/ fast/ rapid chargers can satisfy
 slow_c = [2000, 3500]
+slow_avg = (slow_c[0]+slow_c[1])/2
 fast_c = [4000, 5200]
 rapid_c = [30000, 50500]
+fast_avg = (fast_c[0]+fast_c[1])/2
+rapid_avg = (rapid_c[0]+rapid_c[1])/2
 
 ## for visualizations
 # print(charg_point_df.columns)
@@ -58,6 +61,12 @@ neighbor = [np.array(ne[1:-1].replace(' ', '').split(','), dtype = int) for ne i
 
 num_potential = demand_df['Number of Potential Locations'].to_numpy()
 num_interest = demand_df['Number of PoI'].to_numpy()
+
+exist_cp = demand_df['Number of Charging Points'].to_numpy()
+exist_slow =  demand_df['Number of Slow Charging Points'].to_numpy()
+exist_fast = demand_df['Number of Fast Charging Points'].to_numpy()
+exist_rapid = demand_df['Number of Rapid Charging Points'].to_numpy()
+demand_0 = demand_df['Demand_0'].to_numpy()
 
 ## potential_list >= intereset_list
 ## existing_list ?
@@ -88,20 +97,21 @@ for k in interest_point_index:
 #         construct[ii].append(ii)
 
 # print(construct)
-for i in range(number_of_grids):
-    ii = i+1
-    if ii not in construct.keys():
-        construct[ii] = []
+# for i in range(number_of_grids):
+#     ii = i+1
+#     if ii not in construct.keys():
+#         construct[ii] = []
 
 # here A is a matrix 434*434 denoting at each index if the other relevant index is neighbor(1) or not(0)
 # A is a binary matrix
-A = np.zeros((number_of_grids, number_of_grids))  # A is a 343x343 matrix
+A = np.zeros((number_of_grids, number_of_grids))  # A is a 434*434 matrix
 for i in range(number_of_grids):
     for j in range(number_of_grids):
-        if (i+1) in construct[j+1]:
-            A[i,j] = 1
+        if (i+1) in construct.keys():
+            if (j+1) in construct[i+1]:
+                A[i,j] = 1
 
-print(find_indices(A[:, 192],1))
+print(find_indices(A[192, :],1))
 print(construct[193])    
 
 # I = np.eye(number_of_grids)  # I is the identity matrix
@@ -111,9 +121,16 @@ x = xp.vars(number_of_grids, vartype=xp.integer)
 # x0 = np.random.random(number_of_grids)  # random vector
 
 # 6 constraints (rows of A)
-tolerance = 3
-Lin_sys1 = xp.Dot(A, x) >= np.array(num_interest)-tolerance
+tolerance = 0
+Lin_sys1 = xp.Dot(A, (x+exist_cp)) >= np.array(num_interest)-tolerance
 Lin_sys2 = x<= np.array(num_potential)
+Lin_sys3 = xp.Dot(A, (x+exist_cp)) >= np.array(demand_0)/slow_avg
+
+print(xp.Dot(A, x)[261])
+print(construct[262])
+print(xp.Dot(A, x)[397])
+print(construct[398])
+# print(Lin_sys1)
 
 
 # One quadratic constraint
@@ -125,8 +142,13 @@ p = xp.problem()
 
 p.addVariable(x)
 p.addConstraint(Lin_sys1,Lin_sys2)
-p.delConstraint(213) # deletes R214/R648
-p.delConstraint(149)
+# p.delConstraint(213) # deletes R214/R648
+# p.delConstraint(149)
+p.delConstraint(789)
+p.delConstraint(723)
+p.delConstraint(647)
+p.delConstraint(597)
+
 
 # p.setObjective(xp.Dot(x-x0, x-x0))
 # obj = xp.Dot(A, x) - np.array(num_interest)
@@ -140,7 +162,7 @@ p.solve()
 # you can use function problem.iisfirst which computes a minimal set of constraints that make your problem infeasible. 
 # Once the function has finished, you can use problem.iisgetdata to get the list of those constraints.
  
-# p.iisfirst(0)  # This looks for the first IIS. 
+p.iisfirst(0)  # This looks for the first IIS. 
 # p.iisgetdata()
 
 print(p.getSolution ())            # prints a list with an optimal solution
